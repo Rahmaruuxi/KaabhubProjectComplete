@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Mentorship = require("../models/Mentorship");
 const { auth } = require("../middleware/auth");
+const User = require('../models/User');
+const { createNotification } = require('../utils/notificationUtils');
 
 // Get all mentorships
 router.get("/", async (req, res) => {
@@ -273,6 +275,16 @@ router.post("/:id/request", auth, async (req, res) => {
     mentorship.status = "requested";
     await mentorship.save();
 
+    // Create notification for mentor
+    const mentee = await User.findById(req.user._id);
+    await createNotification(
+      mentorship.mentor,
+      req.user._id,
+      'mentorship_request',
+      `${mentee.name} requested mentorship for: "${mentorship.title}"`,
+      `/mentorship/${mentorship._id}`
+    );
+
     res.json({ message: "Mentorship request submitted successfully" });
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -317,6 +329,17 @@ router.post("/:id/accept-request/:requestId", auth, async (req, res) => {
     });
 
     await mentorship.save();
+
+    // Create notification for mentee
+    const mentor = await User.findById(req.user._id);
+    await createNotification(
+      request.mentee,
+      req.user._id,
+      'mentorship_accepted',
+      `${mentor.name} accepted your mentorship request for: "${mentorship.title}"`,
+      `/mentorship/${mentorship._id}`
+    );
+
     res.json({ message: "Mentorship request accepted successfully" });
   } catch (error) {
     res.status(400).json({ message: error.message });

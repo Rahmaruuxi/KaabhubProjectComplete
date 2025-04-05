@@ -18,103 +18,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Get question by ID
-router.get("/:id", async (req, res) => {
-  try {
-    const question = await Question.findById(req.params.id)
-      .populate("author", "name profilePicture")
-      .populate("answers.author", "name profilePicture");
-
-    if (!question) {
-      return res.status(404).json({ message: "Question not found" });
-    }
-    res.json(question);
-  } catch (error) {
-    console.error("Get question error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// Create question
-router.post("/", auth, async (req, res) => {
-  try {
-    const { title, content, tags, category = "General", course } = req.body;
-    const question = new Question({
-      title,
-      content,
-      tags,
-      category,
-      course,
-      author: req.user._id,
-    });
-    await question.save();
-
-    // Add question to user's questionsAsked array
-    const user = await User.findById(req.user._id);
-    user.questionsAsked.push(question._id);
-    await user.save();
-
-    // Populate author details before sending response
-    await question.populate("author", "name profilePicture");
-
-    res.status(201).json(question);
-  } catch (error) {
-    console.error("Create question error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// Update question
-router.put("/:id", auth, async (req, res) => {
-  try {
-    const { title, content, tags, category, course } = req.body;
-    const question = await Question.findById(req.params.id);
-
-    if (!question) {
-      return res.status(404).json({ message: "Question not found" });
-    }
-
-    if (question.author.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
-
-    question.title = title || question.title;
-    question.content = content || question.content;
-    question.tags = tags || question.tags;
-    question.category = category || question.category;
-    question.course = course || question.course;
-
-    await question.save();
-    res.json(question);
-  } catch (error) {
-    console.error("Update question error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// Delete question
-router.delete("/:id", auth, async (req, res) => {
-  try {
-    const question = await Question.findById(req.params.id);
-    if (!question) {
-      return res.status(404).json({ message: "Question not found" });
-    }
-
-    // Check if user is authorized to delete the question
-    if (question.author.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to delete this question" });
-    }
-
-    await Question.deleteOne({ _id: req.params.id });
-    res.json({ message: "Question deleted successfully" });
-  } catch (error) {
-    console.error("Delete question error:", error);
-    res.status(500).json({ message: "Error deleting question" });
-  }
-});
-
 // Get all questions with filters
 router.get("/filters", async (req, res) => {
   try {
@@ -150,7 +53,7 @@ router.get("/filters", async (req, res) => {
   }
 });
 
-// Get single question
+// Get question by ID
 router.get("/:id", async (req, res) => {
   try {
     const question = await Question.findById(req.params.id)
@@ -170,14 +73,15 @@ router.get("/:id", async (req, res) => {
 
     res.json(question);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Get question error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// Create new question
+// Create question
 router.post("/", auth, async (req, res) => {
   try {
-    const { title, content, tags, category, course } = req.body;
+    const { title, content, tags, category = "General", course } = req.body;
     const question = new Question({
       title,
       content,
@@ -186,52 +90,90 @@ router.post("/", auth, async (req, res) => {
       course,
       author: req.user._id,
     });
-
     await question.save();
-    await question.populate("author", "name profilePicture");
 
     // Add question to user's questionsAsked array
-    req.user.questionsAsked.push(question._id);
-    await req.user.save();
+    const user = await User.findById(req.user._id);
+    user.questionsAsked.push(question._id);
+    await user.save();
+
+    // Populate author details before sending response
+    await question.populate("author", "name profilePicture");
+
+    // Emit socket event for new question
+    const io = req.app.get('io');
+    io.to("questions").emit("new-question", question);
 
     res.status(201).json(question);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error("Create question error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 // Update question
-router.patch("/:id", auth, async (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   try {
+    const { title, content, tags, category, course } = req.body;
     const question = await Question.findById(req.params.id);
 
     if (!question) {
       return res.status(404).json({ message: "Question not found" });
     }
 
-    // Check if user is the author
     if (question.author.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to edit this question" });
+      return res.status(403).json({ message: "Not authorized" });
     }
 
-    const updates = Object.keys(req.body);
-    const allowedUpdates = ["title", "content", "tags", "category", "course"];
-    const isValidOperation = updates.every((update) =>
-      allowedUpdates.includes(update)
-    );
+    question.title = title || question.title;
+    question.content = content || question.content;
+    question.tags = tags || question.tags;
+    question.category = category || question.category;
+    question.course = course || question.course;
 
-    if (!isValidOperation) {
-      return res.status(400).json({ message: "Invalid updates" });
-    }
-
-    updates.forEach((update) => (question[update] = req.body[update]));
     await question.save();
+    
+    // Populate author details before emitting
+    await question.populate("author", "name profilePicture");
+    
+    // Emit socket event for updated question
+    const io = req.app.get('io');
+    io.to(`question-${question._id}`).emit("question-updated", question);
+    io.to("questions").emit("question-updated", question);
 
     res.json(question);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error("Update question error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Delete question
+router.delete("/:id", auth, async (req, res) => {
+  try {
+    const question = await Question.findById(req.params.id);
+    if (!question) {
+      return res.status(404).json({ message: "Question not found" });
+    }
+
+    // Check if user is authorized to delete the question
+    if (question.author.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to delete this question" });
+    }
+
+    await Question.deleteOne({ _id: req.params.id });
+    
+    // Emit socket event for deleted question
+    const io = req.app.get('io');
+    io.to(`question-${req.params.id}`).emit("question-deleted", req.params.id);
+    io.to("questions").emit("question-deleted", req.params.id);
+
+    res.json({ message: "Question deleted successfully" });
+  } catch (error) {
+    console.error("Delete question error:", error);
+    res.status(500).json({ message: "Error deleting question" });
   }
 });
 
@@ -263,6 +205,15 @@ router.post("/:id/upvote", auth, async (req, res) => {
     }
 
     await question.save();
+    
+    // Populate author details before emitting
+    await question.populate("author", "name profilePicture");
+    
+    // Emit socket event for updated question
+    const io = req.app.get('io');
+    io.to(`question-${question._id}`).emit("question-updated", question);
+    io.to("questions").emit("question-updated", question);
+
     res.json(question);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -297,6 +248,15 @@ router.post("/:id/downvote", auth, async (req, res) => {
     }
 
     await question.save();
+    
+    // Populate author details before emitting
+    await question.populate("author", "name profilePicture");
+    
+    // Emit socket event for updated question
+    const io = req.app.get('io');
+    io.to(`question-${question._id}`).emit("question-updated", question);
+    io.to("questions").emit("question-updated", question);
+
     res.json(question);
   } catch (error) {
     res.status(400).json({ message: error.message });

@@ -39,8 +39,8 @@ const Login = () => {
       if (response.data && response.data.token) {
         // First store the token and user data
         await login(response.data.token, response.data.user);
-        // Then navigate
-        navigate("/");
+        // Then navigate to posts page instead of home
+        navigate("/posts");
       } else {
         setError("Invalid response from server");
       }

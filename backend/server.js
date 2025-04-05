@@ -11,9 +11,11 @@ const questionRoutes = require("./routes/questionRoutes");
 const answerRoutes = require("./routes/answerRoutes");
 const opportunityRoutes = require("./routes/opportunityRoutes");
 const mentorshipRoutes = require("./routes/mentorshipRoutes");
+const mentorshipMessageRoutes = require("./routes/mentorshipMessageRoutes");
 const postRoutes = require("./routes/postRoutes");
 const scholarshipRoutes = require("./routes/scholarshipRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 // Load environment variables
 dotenv.config();
@@ -26,6 +28,9 @@ const io = socketIo(server, {
     methods: ["GET", "POST"],
   },
 });
+
+// Make io accessible to routes
+app.set('io', io);
 
 // Middleware
 app.use(cors());
@@ -46,9 +51,11 @@ app.use("/api/questions", questionRoutes);
 app.use("/api/answers", answerRoutes);
 app.use("/api/opportunities", opportunityRoutes);
 app.use("/api/mentorships", mentorshipRoutes);
+app.use("/api/mentorship-messages", mentorshipMessageRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/scholarships", scholarshipRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Basic route
 app.get("/", (req, res) => {
@@ -63,22 +70,50 @@ io.on("connection", (socket) => {
     console.log("Client disconnected");
   });
 
+  // Join questions room
+  socket.on("join-questions", () => {
+    socket.join("questions");
+    console.log("Client joined questions room");
+  });
+
+  // Leave questions room
+  socket.on("leave-questions", () => {
+    socket.leave("questions");
+    console.log("Client left questions room");
+  });
+
   // Join question room
   socket.on("join-question", (questionId) => {
     socket.join(`question-${questionId}`);
+    console.log(`Client joined question room: ${questionId}`);
   });
 
   // Leave question room
   socket.on("leave-question", (questionId) => {
     socket.leave(`question-${questionId}`);
+    console.log(`Client left question room: ${questionId}`);
+  });
+
+  // Join mentorship room
+  socket.on("join-mentorship", (mentorshipId) => {
+    socket.join(`mentorship-${mentorshipId}`);
+    console.log(`Client joined mentorship room: ${mentorshipId}`);
+  });
+
+  // Leave mentorship room
+  socket.on("leave-mentorship", (mentorshipId) => {
+    socket.leave(`mentorship-${mentorshipId}`);
+    console.log(`Client left mentorship room: ${mentorshipId}`);
   });
 
   // Handle real-time notifications
   socket.on("join", (userId) => {
+    console.log(`User ${userId} joined their notification room`);
     socket.join(userId);
   });
 
   socket.on("leave", (userId) => {
+    console.log(`User ${userId} left their notification room`);
     socket.leave(userId);
   });
 
@@ -101,9 +136,6 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: "Something went wrong!" });
 });
-
-// Make io accessible to routes
-app.set("io", io);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

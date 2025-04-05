@@ -4,6 +4,7 @@ const Answer = require("../models/Answer");
 const Question = require("../models/Question");
 const { auth } = require("../middleware/auth");
 const User = require("../models/User");
+const { createNotification } = require('../utils/notificationUtils');
 
 // Get answers for a question
 router.get("/question/:questionId", async (req, res) => {
@@ -22,6 +23,14 @@ router.get("/question/:questionId", async (req, res) => {
 router.post("/", auth, async (req, res) => {
   try {
     const { content, questionId } = req.body;
+    
+    // First find the question to ensure it exists
+    const question = await Question.findById(questionId);
+    if (!question) {
+      return res.status(404).json({ message: "Question not found" });
+    }
+
+    // Create the answer
     const answer = new Answer({
       content,
       question: questionId,
@@ -29,18 +38,35 @@ router.post("/", auth, async (req, res) => {
     });
     await answer.save();
 
-    // Update question's answers array
-    await Question.findByIdAndUpdate(questionId, {
-      $push: { answers: answer._id },
-    });
+    // Update question's answers array with just the answer ID
+    question.answers.push(answer._id);
+    await question.save();
 
     // Add answer to user's answersGiven array
     const user = await User.findById(req.user._id);
     user.answersGiven.push(answer._id);
     await user.save();
 
+    // Create notification for question author
+    if (question.author.toString() !== req.user._id.toString()) {
+      await createNotification(
+        question.author,
+        req.user._id,
+        'answer',
+        `${user.name} answered your question: "${question.title}"`,
+        `/question/${questionId}`,
+        req.app.get('io')
+      );
+    }
+
     // Populate author details before sending response
     await answer.populate("author", "name profilePicture");
+
+    // Emit socket event for new answer
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`question-${questionId}`).emit("new-answer", answer);
+    }
 
     res.status(201).json(answer);
   } catch (error) {
@@ -50,7 +76,7 @@ router.post("/", auth, async (req, res) => {
 });
 
 // Update answer
-router.put("/:id", async (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   try {
     const { content } = req.body;
     const answer = await Answer.findById(req.params.id);
@@ -59,12 +85,20 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ message: "Answer not found" });
     }
 
-    if (answer.author.toString() !== req.user.userId) {
+    if (answer.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
     answer.content = content || answer.content;
     await answer.save();
+    
+    // Populate author details before emitting
+    await answer.populate("author", "name profilePicture");
+    
+    // Emit socket event for updated answer
+    const io = req.app.get('io');
+    io.to(`question-${answer.question}`).emit("answer-updated", answer);
+
     res.json(answer);
   } catch (error) {
     console.error("Update answer error:", error);
@@ -73,7 +107,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // Delete answer
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", auth, async (req, res) => {
   try {
     const answer = await Answer.findById(req.params.id);
 
@@ -81,7 +115,7 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ message: "Answer not found" });
     }
 
-    if (answer.author.toString() !== req.user.userId) {
+    if (answer.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
@@ -91,6 +125,11 @@ router.delete("/:id", async (req, res) => {
     });
 
     await answer.remove();
+    
+    // Emit socket event for deleted answer
+    const io = req.app.get('io');
+    io.to(`question-${answer.question}`).emit("answer-deleted", answer._id);
+
     res.json({ message: "Answer deleted" });
   } catch (error) {
     console.error("Delete answer error:", error);
@@ -115,6 +154,10 @@ router.post("/:id/comments", auth, async (req, res) => {
     answer.comments.push(comment);
     await answer.save();
     await answer.populate("comments.author", "name profilePicture");
+    
+    // Emit socket event for updated answer with new comment
+    const io = req.app.get('io');
+    io.to(`question-${answer.question}`).emit("answer-updated", answer);
 
     res.status(201).json(answer);
   } catch (error) {
@@ -152,6 +195,26 @@ router.post("/:id/accept", auth, async (req, res) => {
     answerAuthor.reputation += 15;
     await answerAuthor.save();
 
+    // Create notification for answer author
+    await createNotification(
+      answer.author,
+      req.user._id,
+      'answer_accepted',
+      `Your answer to "${question.title}" was accepted!`,
+      `/question/${question._id}`,
+      req.app.get('io')
+    );
+
+    // Populate author details before emitting
+    await answer.populate("author", "name profilePicture");
+    await question.populate("author", "name profilePicture");
+    
+    // Emit socket events for updated answer and question
+    const io = req.app.get('io');
+    io.to(`question-${question._id}`).emit("answer-updated", answer);
+    io.to(`question-${question._id}`).emit("question-updated", question);
+    io.to("questions").emit("question-updated", question);
+
     res.json({ answer, question });
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -186,6 +249,14 @@ router.post("/:id/upvote", auth, async (req, res) => {
     }
 
     await answer.save();
+    
+    // Populate author details before emitting
+    await answer.populate("author", "name profilePicture");
+    
+    // Emit socket event for updated answer
+    const io = req.app.get('io');
+    io.to(`question-${answer.question}`).emit("answer-updated", answer);
+
     res.json(answer);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -220,6 +291,14 @@ router.post("/:id/downvote", auth, async (req, res) => {
     }
 
     await answer.save();
+    
+    // Populate author details before emitting
+    await answer.populate("author", "name profilePicture");
+    
+    // Emit socket event for updated answer
+    const io = req.app.get('io');
+    io.to(`question-${answer.question}`).emit("answer-updated", answer);
+
     res.json(answer);
   } catch (error) {
     res.status(400).json({ message: error.message });

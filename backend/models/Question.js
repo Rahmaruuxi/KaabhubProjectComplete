@@ -16,19 +16,8 @@ const questionSchema = new mongoose.Schema({
     required: true
   },
   answers: [{
-    content: {
-      type: String,
-      required: true
-    },
-    author: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now
-    }
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Answer'
   }],
   views: {
     type: Number,

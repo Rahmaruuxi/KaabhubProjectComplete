@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import MentorshipChat from "../components/MentorshipChat";
 import {
   UserCircleIcon,
   AcademicCapIcon,
@@ -215,20 +216,15 @@ const MentorshipDetail = () => {
               </dd>
             </div>
 
-            <div className="sm:col-span-2">
-              <dt className="text-sm font-medium text-gray-500">
-                Requirements
-              </dt>
-              <dd className="mt-1 text-sm text-gray-900">
-                <ul className="list-disc pl-5 space-y-1">
-                  {mentorship.requirements.map((req, index) => (
-                    <li key={index}>{req}</li>
-                  ))}
-                </ul>
+            <div className="sm:col-span-1">
+              <dt className="text-sm font-medium text-gray-500">Location</dt>
+              <dd className="mt-1 text-sm text-gray-900 flex items-center">
+                <MapPinIcon className="h-5 w-5 text-gray-400 mr-2" />
+                {mentorship.location}
               </dd>
             </div>
 
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-1">
               <dt className="text-sm font-medium text-gray-500">Mentor</dt>
               <dd className="mt-1 text-sm text-gray-900 flex items-center">
                 {mentorship.mentor && mentorship.mentor.profilePicture ? (
@@ -258,6 +254,16 @@ const MentorshipDetail = () => {
             </div>
           </dl>
         </div>
+
+        {/* Add MentorshipChat component for active mentorships */}
+        {mentorship.status === "active" && (
+          <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
+            <h4 className="text-lg font-medium text-gray-900 mb-4">
+              Mentorship Chat
+            </h4>
+            <MentorshipChat mentorshipId={id} />
+          </div>
+        )}
 
         <div className="px-4 py-5 sm:px-6">
           {user && mentorship.mentor && mentorship.mentor._id === user._id ? (

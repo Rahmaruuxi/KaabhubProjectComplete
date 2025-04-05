@@ -13,7 +13,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['answer', 'comment', 'mentorship_request', 'mentorship_accepted'],
+    enum: ['answer', 'comment', 'mentorship_request', 'mentorship_accepted', 'answer_accepted', 'mentorship_message'],
     required: true
   },
   content: {
@@ -21,8 +21,7 @@ const notificationSchema = new mongoose.Schema({
     required: true
   },
   link: {
-    type: String,
-    required: true
+    type: String
   },
   read: {
     type: Boolean,
@@ -34,4 +33,9 @@ const notificationSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model('Notification', notificationSchema); 
+// Index for efficient querying
+notificationSchema.index({ recipient: 1, createdAt: -1 });
+
+const Notification = mongoose.model('Notification', notificationSchema);
+
+module.exports = Notification; 

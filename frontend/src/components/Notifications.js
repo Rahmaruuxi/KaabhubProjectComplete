@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import io from "socket.io-client";
 import {
   BellIcon,
   XMarkIcon as XIcon,
@@ -9,6 +10,7 @@ import {
   HandThumbUpIcon as ThumbUpIcon,
   AtSymbolIcon,
   CheckCircleIcon,
+  UserGroupIcon,
 } from "@heroicons/react/24/outline";
 
 const Notifications = () => {
@@ -17,15 +19,39 @@ const Notifications = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const socketRef = useRef(null);
 
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      // Set up polling for new notifications
-      const interval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds
-      return () => clearInterval(interval);
+      
+      // Set up socket connection
+      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      socketRef.current = io(apiUrl);
+      
+      // Join user's notification room
+      socketRef.current.emit("join", user._id);
+      console.log("Joined notification room for user:", user._id);
+
+      // Listen for new notifications
+      socketRef.current.on("new-notification", (notification) => {
+        console.log("New notification received:", notification);
+        setNotifications((prev) => [notification, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+      });
+
+      // Set up polling for new notifications as backup
+      const interval = setInterval(fetchNotifications, 30000);
+      
+      return () => {
+        clearInterval(interval);
+        if (socketRef.current) {
+          socketRef.current.emit("leave", user._id);
+          socketRef.current.disconnect();
+        }
+      };
     }
-  }, [user]);
+  }, [user, token]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -40,8 +66,9 @@ const Notifications = () => {
 
   const fetchNotifications = async () => {
     try {
+      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
       const response = await axios.get(
-        "http://localhost:5000/api/notifications",
+        `${apiUrl}/api/notifications`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -55,8 +82,9 @@ const Notifications = () => {
 
   const markAsRead = async (notificationId) => {
     try {
-      await axios.put(
-        `http://localhost:5000/api/notifications/${notificationId}/read`,
+      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      await axios.patch(
+        `${apiUrl}/api/notifications/${notificationId}/read`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -71,8 +99,9 @@ const Notifications = () => {
 
   const markAllAsRead = async () => {
     try {
-      await axios.put(
-        "http://localhost:5000/api/notifications/read-all",
+      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      await axios.patch(
+        `${apiUrl}/api/notifications/read-all`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -89,34 +118,19 @@ const Notifications = () => {
         return <ChatAlt2Icon className="h-5 w-5 text-blue-500" />;
       case "comment":
         return <ChatAlt2Icon className="h-5 w-5 text-green-500" />;
-      case "upvote":
-        return <ThumbUpIcon className="h-5 w-5 text-green-500" />;
-      case "mention":
-        return <AtSymbolIcon className="h-5 w-5 text-purple-500" />;
-      case "accepted":
+      case "mentorship_request":
+        return <UserGroupIcon className="h-5 w-5 text-purple-500" />;
+      case "mentorship_accepted":
         return <CheckCircleIcon className="h-5 w-5 text-yellow-500" />;
+      case "answer_accepted":
+        return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
       default:
         return <BellIcon className="h-5 w-5 text-gray-500" />;
     }
   };
 
   const getNotificationLink = (notification) => {
-    switch (notification.type) {
-      case "answer":
-        return `/question/${notification.questionId}`;
-      case "comment":
-        return `/post/${notification.postId}`;
-      case "upvote":
-        return notification.questionId
-          ? `/question/${notification.questionId}`
-          : `/answer/${notification.answerId}`;
-      case "mention":
-        return `/question/${notification.questionId}`;
-      case "accepted":
-        return `/question/${notification.questionId}`;
-      default:
-        return "#";
-    }
+    return notification.link || "#";
   };
 
   return (
@@ -161,7 +175,10 @@ const Notifications = () => {
                 <Link
                   key={notification._id}
                   to={getNotificationLink(notification)}
-                  onClick={() => markAsRead(notification._id)}
+                  onClick={() => {
+                    markAsRead(notification._id);
+                    setShowDropdown(false);
+                  }}
                   className={`block p-4 hover:bg-gray-50 ${
                     !notification.read ? "bg-primary-50" : ""
                   }`}
@@ -172,7 +189,7 @@ const Notifications = () => {
                     </div>
                     <div className="ml-3">
                       <p className="text-sm text-gray-900">
-                        {notification.message}
+                        {notification.content}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         {new Date(notification.createdAt).toLocaleString()}

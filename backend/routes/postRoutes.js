@@ -5,6 +5,8 @@ const { auth } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const User = require('../models/User');
+const { createNotification } = require('../utils/notificationUtils');
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '..', 'uploads', 'posts');
@@ -215,25 +217,34 @@ router.put('/:id/like', auth, async (req, res) => {
 router.post('/:id/comments', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    post.comments.push({
+    const comment = {
       content: req.body.content,
-      author: req.user._id
-    });
+      author: req.user._id,
+    };
 
+    post.comments.push(comment);
     await post.save();
 
-    // Populate the new comment's author details
-    await post.populate('comments.author', 'name profilePicture');
+    // Create notification for post author
+    if (post.author.toString() !== req.user._id.toString()) {
+      const commenter = await User.findById(req.user._id);
+      await createNotification(
+        post.author,
+        req.user._id,
+        'comment',
+        `${commenter.name} commented on your post: "${post.title}"`,
+        `/post/${post._id}`
+      );
+    }
 
-    res.json(post);
+    await post.populate('comments.author', 'name profilePicture');
+    res.status(201).json(post);
   } catch (error) {
-    console.error('Add comment error:', error);
-    res.status(500).json({ message: 'Error adding comment' });
+    res.status(400).json({ message: error.message });
   }
 });
 

@@ -22,42 +22,12 @@ const AnswerForm = ({ questionId, onAnswerPosted }) => {
     setError(null);
 
     try {
-      // First, get the question details to get the author
-      const questionResponse = await axios.get(
-        `http://localhost:5000/api/questions/${questionId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // Then post the answer
+      // Post the answer
       const response = await axios.post(
-        `http://localhost:5000/api/questions/${questionId}/answers`,
-        { content: content },
+        `http://localhost:5000/api/answers`,
+        { content: content, questionId: questionId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      // Create notification for the question author
-      if (
-        questionResponse.data.author &&
-        questionResponse.data.author._id !== user._id
-      ) {
-        try {
-          await axios.post(
-            "http://localhost:5000/api/notifications/create",
-            {
-              recipientId: questionResponse.data.author._id,
-              senderId: user._id,
-              type: "answer",
-              content: `${user.name} answered your question: "${questionResponse.data.title}"`,
-              questionId: questionId,
-              link: `/question/${questionId}`,
-            },
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          console.log("Answer notification sent successfully");
-        } catch (notifError) {
-          console.error("Error creating answer notification:", notifError);
-        }
-      }
 
       setSuccess(true);
       setContent("");

@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Notifications from "./Notifications";
 import {
   Bars3Icon,
   XMarkIcon,
@@ -80,7 +81,7 @@ const Navbar = () => {
       await logout();
       localStorage.removeItem("token");
       setShowLogoutModal(false);
-      navigate("/login");
+      navigate("/login", { state: { from: "/posts" } });
     } catch (error) {
       console.error("Failed to log out:", error);
     } finally {
@@ -92,13 +93,12 @@ const Navbar = () => {
 
   const navigation = user
     ? [
-        { name: "Home", href: "/", icon: HomeIcon },
+      { name: "Posts", href: "/posts", icon: ChatBubbleLeftIcon },
         { name: "Questions", href: "/questions", icon: QuestionMarkCircleIcon },
         { name: "Opportunities", href: "/opportunities", icon: BriefcaseIcon },
-        { name: "Mentorship", href: "/mentorship", icon: AcademicCapIcon },
-        { name: "About", href: "/about", icon: InformationCircleIcon },
-        { name: "Contact", href: "/contact", icon: EnvelopeIcon },
-        { name: "Posts", href: "/posts", icon: ChatBubbleLeftIcon },
+        { name: "Mentorship", href: "/mentorships", icon: AcademicCapIcon },
+        
+        
       ]
     : [
         { name: "Home", href: "/", icon: HomeIcon },
@@ -135,45 +135,20 @@ const Navbar = () => {
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              <Link
-                to="/"
-                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-[#136269]"
-              >
-                <HomeIcon className="h-5 w-5 mr-1" />
-                Home
-              </Link>
-              <Link
-                to="/posts"
-                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-[#136269]"
-              >
-                <ChatBubbleLeftIcon className="h-5 w-5 mr-1" />
-                Posts
-              </Link>
-              <Link
-                to="/questions"
-                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-[#136269]"
-              >
-                <QuestionMarkCircleIcon className="h-5 w-5 mr-1" />
-                Questions
-              </Link>
-              <Link
-                to="/opportunities"
-                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-[#136269]"
-              >
-                <BriefcaseIcon className="h-5 w-5 mr-1" />
-                Opportunities
-              </Link>
-              <Link
-                to="/mentorships"
-                className={`${
-                  location.pathname === "/mentorships"
-                    ? "border-primary-500 text-gray-900"
-                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-                } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
-              >
-                <AcademicCapIcon className="h-5 w-5 mr-1" />
-                Mentorships
-              </Link>
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`${
+                    isActive(item.href)
+                      ? "border-[#136269] text-gray-900"
+                      : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                >
+                  <item.icon className="h-5 w-5 mr-1" />
+                  {item.name}
+                </Link>
+              ))}
             </div>
           </div>
 
@@ -282,12 +257,9 @@ const Navbar = () => {
               </div>
             )}
             {user && (
-              <Link
-                to="/notifications"
-                className="p-2 text-gray-400 hover:text-[#136269] transition-colors duration-200"
-              >
-                <BellIcon className="h-6 w-6" />
-              </Link>
+              <div className="ml-4">
+                <Notifications />
+              </div>
             )}
           </div>
 

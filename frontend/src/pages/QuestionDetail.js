@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import io from "socket.io-client";
 import {
   UserCircleIcon,
   ChatBubbleLeftIcon,
@@ -27,6 +28,7 @@ const QuestionDetail = () => {
     content: "",
     tags: "",
   });
+  const socketRef = useRef(null);
 
   useEffect(() => {
     if (!token) {
@@ -35,13 +37,70 @@ const QuestionDetail = () => {
     }
 
     fetchQuestion();
+    
+    // Set up socket connection
+    const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+    socketRef.current = io(apiUrl);
+    
+    // Join question room
+    socketRef.current.emit("join-question", id);
+    console.log(`Joined question room: ${id}`);
+    
+    // Listen for question updates
+    socketRef.current.on("question-updated", (updatedQuestion) => {
+      console.log("Question updated:", updatedQuestion);
+      if (updatedQuestion._id === id) {
+        setQuestion(updatedQuestion);
+      }
+    });
+    
+    // Listen for new answers
+    socketRef.current.on("new-answer", (answer) => {
+      console.log("New answer received:", answer);
+      if (answer.question === id) {
+        setQuestion((prev) => ({
+          ...prev,
+          answers: [...prev.answers, answer],
+        }));
+      }
+    });
+    
+    // Listen for answer updates
+    socketRef.current.on("answer-updated", (updatedAnswer) => {
+      console.log("Answer updated:", updatedAnswer);
+      if (updatedAnswer.question === id) {
+        setQuestion((prev) => ({
+          ...prev,
+          answers: prev.answers.map((a) => 
+            a._id === updatedAnswer._id ? updatedAnswer : a
+          ),
+        }));
+      }
+    });
+    
+    // Listen for answer deletions
+    socketRef.current.on("answer-deleted", (answerId) => {
+      console.log("Answer deleted:", answerId);
+      setQuestion((prev) => ({
+        ...prev,
+        answers: prev.answers.filter((a) => a._id !== answerId),
+      }));
+    });
+    
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.emit("leave-question", id);
+        socketRef.current.disconnect();
+      }
+    };
   }, [id, token, navigate]);
 
   const fetchQuestion = async () => {
     try {
       setLoading(true);
+      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
       const response = await axios.get(
-        `http://localhost:5000/api/questions/${id}`,
+        `${apiUrl}/api/questions/${id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -63,17 +122,16 @@ const QuestionDetail = () => {
   const handleSubmitAnswer = async (e) => {
     e.preventDefault();
     try {
+      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
       const response = await axios.post(
-        `http://localhost:5000/api/questions/${id}/answers`,
-        { content: newAnswer },
+        `${apiUrl}/api/answers`,
+        { content: newAnswer, questionId: id },
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      // Update the question state with the new answer
-      // The response.data contains the updated question with the new answer
-      setQuestion(response.data);
+      // The socket event will handle updating the question state
       setNewAnswer("");
     } catch (err) {
       setError(err.response?.data?.message || "Failed to submit answer");
@@ -83,8 +141,9 @@ const QuestionDetail = () => {
   const handleUpdateQuestion = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.put(
-        `http://localhost:5000/api/questions/${id}`,
+      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      await axios.put(
+        `${apiUrl}/api/questions/${id}`,
         {
           ...editedQuestion,
           tags: editedQuestion.tags
@@ -96,7 +155,7 @@ const QuestionDetail = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      setQuestion(response.data);
+      // The socket event will handle updating the question state
       setShowEditForm(false);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update question");
@@ -108,7 +167,8 @@ const QuestionDetail = () => {
       return;
 
     try {
-      await axios.delete(`http://localhost:5000/api/questions/${id}`, {
+      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      await axios.delete(`${apiUrl}/api/questions/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       navigate("/questions");
@@ -199,43 +259,45 @@ const QuestionDetail = () => {
 
             {question.tags && question.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4">
-                {question.tags.map((tag) => (
+                {question.tags.map((tag, index) => (
                   <span
-                    key={tag}
-                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#136269]/10 text-[#136269]"
+                    key={index}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
                   >
-                    <TagIcon className="h-3 w-3 mr-0.5" />
+                    <TagIcon className="h-3 w-3 mr-1" />
                     {tag}
                   </span>
                 ))}
               </div>
             )}
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-t border-gray-200 pt-4 mt-4">
               <div className="flex items-center space-x-4 text-sm text-gray-500">
                 <div className="flex items-center">
-                  <ChatBubbleLeftIcon className="h-4 w-4 mr-1" />
-                  {question.answers.length} answers
+                  <EyeIcon className="h-4 w-4 mr-1" />
+                  <span>{question.views || 0} views</span>
                 </div>
                 <div className="flex items-center">
-                  <EyeIcon className="h-4 w-4 mr-1" />
-                  {question.views} views
+                  <ChatBubbleLeftIcon className="h-4 w-4 mr-1" />
+                  <span>{question.answers?.length || 0} answers</span>
                 </div>
               </div>
 
-              {user && question.author && user._id === question.author._id && (
+              {user && user._id === question.author?._id && (
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => setShowEditForm(true)}
-                    className="p-1 text-gray-600 hover:text-[#136269] transition-colors duration-200"
+                    onClick={() => setShowEditForm(!showEditForm)}
+                    className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                   >
-                    <PencilIcon className="h-4 w-4" />
+                    <PencilIcon className="h-4 w-4 mr-1" />
+                    Edit
                   </button>
                   <button
                     onClick={handleDeleteQuestion}
-                    className="p-1 text-red-500 hover:text-red-700 transition-colors duration-200"
+                    className="inline-flex items-center px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700"
                   >
-                    <TrashIcon className="h-4 w-4" />
+                    <TrashIcon className="h-4 w-4 mr-1" />
+                    Delete
                   </button>
                 </div>
               )}
@@ -243,7 +305,10 @@ const QuestionDetail = () => {
           </div>
 
           {showEditForm && (
-            <div className="bg-white shadow-md rounded-lg p-4 border border-gray-200 mb-6">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Edit Question
+              </h2>
               <form onSubmit={handleUpdateQuestion} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -307,90 +372,168 @@ const QuestionDetail = () => {
                     type="submit"
                     className="px-3 py-1.5 bg-[#136269] text-white rounded-lg hover:bg-[#0f4a52]"
                   >
-                    Update Question
+                    Save Changes
                   </button>
                 </div>
               </form>
             </div>
           )}
 
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">Answers</h2>
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              {question.answers?.length || 0} Answers
+            </h2>
 
-            {user && (
-              <div className="bg-white shadow-md rounded-lg p-4 border border-gray-200">
-                <form onSubmit={handleSubmitAnswer} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Your Answer
-                    </label>
-                    <textarea
-                      value={newAnswer}
-                      onChange={(e) => setNewAnswer(e.target.value)}
-                      rows={4}
-                      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#5DB2B3] focus:border-transparent"
-                      required
-                      placeholder="Write your answer here..."
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      className="px-3 py-1.5 bg-[#136269] text-white rounded-lg hover:bg-[#0f4a52]"
-                    >
-                      Post Answer
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            {question.answers.map((answer) => (
-              <div
-                key={answer._id}
-                className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200"
-              >
-                <div className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 text-xs text-gray-500 mb-2">
-                        <div className="flex items-center">
-                          {answer.author?.profilePicture ? (
-                            <img
-                              src={
-                                answer.author.profilePicture.startsWith("http")
-                                  ? answer.author.profilePicture
-                                  : `http://localhost:5000${answer.author.profilePicture}`
-                              }
-                              alt={answer.author?.name || "User"}
-                              className="h-6 w-6 rounded-full mr-1.5 object-cover"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src =
-                                  "http://localhost:5000/uploads/profiles/default.png";
-                              }}
-                            />
-                          ) : (
-                            <div className="h-6 w-6 rounded-full bg-[#136269] flex items-center justify-center mr-1.5">
-                              <span className="text-xs font-medium text-white">
-                                {answer.author?.name?.charAt(0) || "?"}
-                              </span>
-                            </div>
-                          )}
-                          <span>{answer.author?.name || "Unknown User"}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <CalendarIcon className="h-4 w-4 mr-0.5" />
-                          {new Date(answer.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-
-                      <p className="text-gray-600">{answer.content}</p>
-                    </div>
+            {user ? (
+              <form onSubmit={handleSubmitAnswer} className="mb-6">
+                <div className="mb-4">
+                  <textarea
+                    value={newAnswer}
+                    onChange={(e) => setNewAnswer(e.target.value)}
+                    rows={4}
+                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#5DB2B3] focus:border-transparent"
+                    placeholder="Write your answer here..."
+                    required
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#136269] text-white rounded-lg hover:bg-[#0f4a52]"
+                  >
+                    Post Answer
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                <div className="flex">
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-700">
+                      Please log in to post an answer.
+                    </p>
                   </div>
                 </div>
               </div>
-            ))}
+            )}
+
+            {question.answers && question.answers.length > 0 ? (
+              <div className="space-y-6">
+                {question.answers.map((answer) => (
+                  <div
+                    key={answer._id}
+                    className={`border rounded-lg p-4 ${
+                      answer.isAccepted
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3 mb-4">
+                      {answer.author?.profilePicture ? (
+                        <img
+                          src={
+                            answer.author.profilePicture.startsWith("http")
+                              ? answer.author.profilePicture
+                              : `http://localhost:5000${answer.author.profilePicture}`
+                          }
+                          alt={answer.author?.name || "User"}
+                          className="h-8 w-8 rounded-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src =
+                              "http://localhost:5000/uploads/profiles/default.png";
+                          }}
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-[#136269] flex items-center justify-center">
+                          <span className="text-sm font-medium text-white">
+                            {answer.author?.name?.charAt(0) || "?"}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <Link
+                          to={`/profile/${answer.author?._id}`}
+                          className="text-sm font-medium text-gray-900 hover:text-[#136269]"
+                        >
+                          {answer.author?.name || "Unknown User"}
+                        </Link>
+                        <p className="text-xs text-gray-500">
+                          {new Date(answer.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-gray-700 whitespace-pre-wrap mb-4">
+                      {answer.content}
+                    </p>
+
+                    <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <div className="flex items-center">
+                          <ChatBubbleLeftIcon className="h-4 w-4 mr-1" />
+                          <span>{answer.comments?.length || 0} comments</span>
+                        </div>
+                      </div>
+
+                      {user && user._id === question.author?._id && !question.isSolved && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+                              await axios.post(
+                                `${apiUrl}/api/answers/${answer._id}/accept`,
+                                {},
+                                {
+                                  headers: { Authorization: `Bearer ${token}` },
+                                }
+                              );
+                              // The socket event will handle updating the question state
+                            } catch (err) {
+                              setError(
+                                err.response?.data?.message ||
+                                  "Failed to accept answer"
+                              );
+                            }
+                          }}
+                          className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${
+                            answer.isAccepted
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                          }`}
+                        >
+                          {answer.isAccepted ? "Accepted" : "Accept Answer"}
+                        </button>
+                      )}
+
+                      {answer.isAccepted && (
+                        <div className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-green-100 text-green-800">
+                          <svg
+                            className="h-4 w-4 mr-1"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          Accepted Answer
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No answers yet. Be the first to answer!</p>
+              </div>
+            )}
           </div>
         </div>
       ) : null}
