@@ -62,8 +62,8 @@ const Register = () => {
     const yearNum = parseInt(formData.year);
     if (!formData.year || formData.year.trim() === "") {
       newErrors.year = "Year is required";
-    } else if (isNaN(yearNum) || yearNum < 1 || yearNum > 4) {
-      newErrors.year = "Year must be between 1 and 4";
+    } else if (isNaN(yearNum) || yearNum < 1 || yearNum > 7) {
+      newErrors.year = "Year must be between 1 and 7";
     }
 
     setErrors(newErrors);
@@ -339,7 +339,7 @@ const Register = () => {
                 htmlFor="university"
                 className="block text-sm font-medium text-gray-700"
               >
-                University
+                Organization
               </label>
               <div className="mt-1">
                 <input
@@ -367,7 +367,7 @@ const Register = () => {
                 htmlFor="course"
                 className="block text-sm font-medium text-gray-700"
               >
-                Course
+                Fields
               </label>
               <div className="mt-1">
                 <input
@@ -404,7 +404,7 @@ const Register = () => {
                   className={`appearance-none block w-full px-3 py-2 border rounded-lg shadow-sm placeholder-gray-400
                     focus:outline-none focus:ring-2 focus:ring-[#5DB2B3] focus:border-[#5DB2B3] sm:text-sm
                     ${errors.year ? "border-red-300" : "border-gray-300"}`}
-                  placeholder="Enter your year (1-4)"
+                  placeholder="Enter your year (1-7)"
                   value={formData.year}
                   onChange={handleChange}
                 />

@@ -27,31 +27,31 @@ const Questions = () => {
     }
 
     fetchQuestions();
-    
+
     // Set up socket connection
     const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
     socketRef.current = io(apiUrl);
-    
+
     // Join questions room
     socketRef.current.emit("join-questions");
-    
+
     // Listen for new questions
     socketRef.current.on("new-question", (question) => {
       setQuestions((prev) => [question, ...prev]);
     });
-    
+
     // Listen for updated questions
     socketRef.current.on("question-updated", (updatedQuestion) => {
-      setQuestions((prev) => 
+      setQuestions((prev) =>
         prev.map((q) => (q._id === updatedQuestion._id ? updatedQuestion : q))
       );
     });
-    
+
     // Listen for deleted questions
     socketRef.current.on("question-deleted", (questionId) => {
       setQuestions((prev) => prev.filter((q) => q._id !== questionId));
     });
-    
+
     return () => {
       if (socketRef.current) {
         socketRef.current.emit("leave-questions");
@@ -100,7 +100,7 @@ const Questions = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
+    <div className="min-h-screen bg-gray-50 pt-24">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold text-[#136269]">Questions</h1>

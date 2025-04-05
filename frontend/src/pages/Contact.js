@@ -1,29 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   EnvelopeIcon,
   PhoneIcon,
   MapPinIcon,
-  PaperAirplaneIcon
-} from '@heroicons/react/24/outline';
+  PaperAirplaneIcon,
+} from "@heroicons/react/24/outline";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: ''
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     // Handle form submission logic here
-    console.log('Form submitted:', formData);
+    console.log("Form submitted:", formData);
   };
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -37,7 +37,8 @@ const Contact = () => {
               Get in Touch
             </h1>
             <p className="text-xl text-[#5DB2B3] max-w-2xl mx-auto">
-              Have questions or suggestions? We'd love to hear from you. Our team is here to help.
+              Have questions or suggestions? We'd love to hear from you. Our
+              team is here to help.
             </p>
           </div>
         </div>
@@ -49,10 +50,15 @@ const Contact = () => {
           {/* Contact Form */}
           <div className="md:col-span-2">
             <div className="bg-white rounded-lg shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a Message</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Send us a Message
+              </h2>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Name
                   </label>
                   <input
@@ -66,7 +72,10 @@ const Contact = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Email
                   </label>
                   <input
@@ -80,7 +89,10 @@ const Contact = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="subject"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Subject
                   </label>
                   <input
@@ -94,7 +106,10 @@ const Contact = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="message"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Message
                   </label>
                   <textarea
@@ -121,28 +136,37 @@ const Contact = () => {
           {/* Contact Information */}
           <div className="md:col-span-1">
             <div className="bg-white rounded-lg shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Contact Information</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Contact Information
+              </h2>
               <div className="space-y-6">
                 <div className="flex items-start">
                   <EnvelopeIcon className="h-6 w-6 text-[#136269] mt-1 mr-3" />
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Email</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Email
+                    </h3>
                     <p className="text-gray-600">support@kaabhub.com</p>
                   </div>
                 </div>
                 <div className="flex items-start">
                   <PhoneIcon className="h-6 w-6 text-[#136269] mt-1 mr-3" />
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Phone</h3>
-                    <p className="text-gray-600">+252 612346699,+252 615678890</p>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Phone
+                    </h3>
+                    <p className="text-gray-600">+2526159424203</p>
                   </div>
                 </div>
                 <div className="flex items-start">
                   <MapPinIcon className="h-6 w-6 text-[#136269] mt-1 mr-3" />
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Location</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Location
+                    </h3>
                     <p className="text-gray-600">
-                      123 Education Street<br />
+                      123 Education Street
+                      <br />
                       Mogadishu, Somalia
                     </p>
                   </div>
@@ -156,4 +180,4 @@ const Contact = () => {
   );
 };
 
-export default Contact; 
+export default Contact;
