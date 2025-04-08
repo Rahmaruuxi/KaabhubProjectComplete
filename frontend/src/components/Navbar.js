@@ -27,6 +27,8 @@ import {
   BookmarkIcon,
   ArrowLeftOnRectangleIcon,
   BellIcon,
+  PencilIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import axios from "axios";
 
@@ -93,12 +95,10 @@ const Navbar = () => {
 
   const navigation = user
     ? [
-      { name: "Posts", href: "/posts", icon: ChatBubbleLeftIcon },
+        { name: "Posts", href: "/posts", icon: ChatBubbleLeftIcon },
         { name: "Questions", href: "/questions", icon: QuestionMarkCircleIcon },
         { name: "Opportunities", href: "/opportunities", icon: BriefcaseIcon },
         { name: "Mentorship", href: "/mentorships", icon: AcademicCapIcon },
-        
-        
       ]
     : [
         { name: "Home", href: "/", icon: HomeIcon },
@@ -122,7 +122,7 @@ const Navbar = () => {
                 <img
                   src="/logo.png"
                   alt="KAAB HUB Logo"
-                  className="h-8 w-8 mr-2 object-contain"
+                  className="h-12 w-12 mr-2 object-contain"
                   onError={(e) => {
                     e.target.onerror = null;
                     e.target.src =
