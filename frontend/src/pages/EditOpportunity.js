@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import {
@@ -14,10 +14,11 @@ import {
   GlobeAltIcon,
 } from "@heroicons/react/24/outline";
 
-const CreateOpportunity = () => {
+const EditOpportunity = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const { token } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -32,8 +33,49 @@ const CreateOpportunity = () => {
     contactEmail: "",
     contactPhone: "",
     website: "",
-    workType: "",
   });
+
+  useEffect(() => {
+    const fetchOpportunity = async () => {
+      try {
+        const response = await axios.get(
+          `http://localhost:5000/api/opportunities/${id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        const opportunity = response.data;
+
+        // Format the date to YYYY-MM-DD for the input
+        const formattedDate = new Date(opportunity.deadline)
+          .toISOString()
+          .split("T")[0];
+
+        setFormData({
+          title: opportunity.title || "",
+          description: opportunity.description || "",
+          type: opportunity.type || "",
+          company: opportunity.company || "",
+          location: opportunity.location || "",
+          requirements: opportunity.requirements?.length
+            ? opportunity.requirements
+            : [""],
+          benefits: opportunity.benefits?.length ? opportunity.benefits : [""],
+          deadline: formattedDate || "",
+          salary: opportunity.salary || "",
+          contactEmail: opportunity.contactEmail || "",
+          contactPhone: opportunity.contactPhone || "",
+          website: opportunity.website || "",
+        });
+        setLoading(false);
+      } catch (err) {
+        setError(err.response?.data?.message || "Failed to fetch opportunity");
+        setLoading(false);
+      }
+    };
+
+    fetchOpportunity();
+  }, [id, token]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -78,27 +120,34 @@ const CreateOpportunity = () => {
         benefits: formData.benefits.filter((benefit) => benefit.trim() !== ""),
       };
 
-      await axios.post(
-        "http://localhost:5000/api/opportunities",
+      await axios.put(
+        `http://localhost:5000/api/opportunities/${id}`,
         filteredFormData,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      navigate("/opportunities");
+      navigate(`/opportunity/${id}`);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to create opportunity");
-    } finally {
+      setError(err.response?.data?.message || "Failed to update opportunity");
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#136269]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12">
       <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-8 my-8 mx-4">
         <h1 className="text-3xl font-bold text-[#136269] mb-10 text-center">
-          Post New Opportunity
+          Edit Opportunity
         </h1>
 
         {error && (
@@ -385,7 +434,7 @@ const CreateOpportunity = () => {
           <div className="flex justify-end space-x-4 pt-4">
             <button
               type="button"
-              onClick={() => navigate("/opportunities")}
+              onClick={() => navigate(`/opportunity/${id}`)}
               className="inline-flex items-center px-6 py-2.5 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
             >
               Cancel
@@ -398,10 +447,10 @@ const CreateOpportunity = () => {
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating...
+                  Saving...
                 </>
               ) : (
-                "Create Opportunity"
+                "Save Changes"
               )}
             </button>
           </div>
@@ -411,4 +460,4 @@ const CreateOpportunity = () => {
   );
 };
 
-export default CreateOpportunity;
+export default EditOpportunity;

@@ -73,7 +73,17 @@ router.post("/", auth, async (req, res) => {
       goals,
       message,
       menteeId,
+      contactEmail,
+      contactPhone,
+      communityLink,
     } = req.body;
+
+    // Validate required contact fields
+    if (!contactEmail || !contactPhone || !communityLink) {
+      return res.status(400).json({
+        message: "Contact email, phone, and community link are required",
+      });
+    }
 
     // If menteeId is provided, it's a mentorship request
     if (menteeId) {
@@ -98,6 +108,9 @@ router.post("/", auth, async (req, res) => {
       goals: goals || [],
       mentor: req.user._id,
       status: "open",
+      contactEmail,
+      contactPhone,
+      communityLink,
     });
     await mentorship.save();
     await mentorship.populate("mentor", "name profilePicture");
@@ -184,6 +197,9 @@ router.put("/:id", auth, async (req, res) => {
       "schedule",
       "requirements",
       "goals",
+      "contactEmail",
+      "contactPhone",
+      "communityLink",
     ];
     const updates = Object.keys(req.body).filter((key) =>
       allowedUpdates.includes(key)

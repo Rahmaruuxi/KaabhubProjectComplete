@@ -101,7 +101,7 @@ router.post("/", auth, async (req, res) => {
     await question.populate("author", "name profilePicture");
 
     // Emit socket event for new question
-    const io = req.app.get('io');
+    const io = req.app.get("io");
     io.to("questions").emit("new-question", question);
 
     res.status(201).json(question);
@@ -132,12 +132,12 @@ router.put("/:id", auth, async (req, res) => {
     question.course = course || question.course;
 
     await question.save();
-    
+
     // Populate author details before emitting
     await question.populate("author", "name profilePicture");
-    
+
     // Emit socket event for updated question
-    const io = req.app.get('io');
+    const io = req.app.get("io");
     io.to(`question-${question._id}`).emit("question-updated", question);
     io.to("questions").emit("question-updated", question);
 
@@ -164,9 +164,9 @@ router.delete("/:id", auth, async (req, res) => {
     }
 
     await Question.deleteOne({ _id: req.params.id });
-    
+
     // Emit socket event for deleted question
-    const io = req.app.get('io');
+    const io = req.app.get("io");
     io.to(`question-${req.params.id}`).emit("question-deleted", req.params.id);
     io.to("questions").emit("question-deleted", req.params.id);
 
@@ -205,12 +205,12 @@ router.post("/:id/upvote", auth, async (req, res) => {
     }
 
     await question.save();
-    
+
     // Populate author details before emitting
     await question.populate("author", "name profilePicture");
-    
+
     // Emit socket event for updated question
-    const io = req.app.get('io');
+    const io = req.app.get("io");
     io.to(`question-${question._id}`).emit("question-updated", question);
     io.to("questions").emit("question-updated", question);
 
@@ -248,12 +248,12 @@ router.post("/:id/downvote", auth, async (req, res) => {
     }
 
     await question.save();
-    
+
     // Populate author details before emitting
     await question.populate("author", "name profilePicture");
-    
+
     // Emit socket event for updated question
-    const io = req.app.get('io');
+    const io = req.app.get("io");
     io.to(`question-${question._id}`).emit("question-updated", question);
     io.to("questions").emit("question-updated", question);
 

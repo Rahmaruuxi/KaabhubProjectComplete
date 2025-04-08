@@ -9,6 +9,9 @@ import {
   PlusIcon,
   TrashIcon,
   XCircleIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  UserGroupIcon,
 } from "@heroicons/react/24/outline";
 
 const CreateMentorship = () => {
@@ -22,9 +25,9 @@ const CreateMentorship = () => {
     duration: "",
     requirements: [""],
     schedule: "",
-    location: "",
+    contactEmail: "",
+    contactPhone: "",
     communityLink: "",
-    deadline: "",
   });
 
   const handleChange = (e) => {
@@ -213,6 +216,7 @@ const CreateMentorship = () => {
                     id="duration"
                     required
                     min="1"
+                    max="12"
                     value={formData.duration}
                     onChange={handleChange}
                     className="shadow-sm focus:ring-2 focus:ring-[#136269] focus:border-[#136269] block w-full sm:text-sm border-gray-300 rounded-lg transition duration-150 ease-in-out"
@@ -281,43 +285,50 @@ const CreateMentorship = () => {
               <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                 <div>
                   <label
-                    htmlFor="location"
+                    htmlFor="contactEmail"
                     className="block text-sm font-semibold text-gray-700 mb-2"
                   >
-                    Location
+                    Contact Email *
                   </label>
-                  <input
-                    type="text"
-                    name="location"
-                    id="location"
-                    required
-                    value={formData.location}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-2 focus:ring-[#136269] focus:border-[#136269] block w-full sm:text-sm border-gray-300 rounded-lg transition duration-150 ease-in-out"
-                    placeholder="e.g., Remote"
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="email"
+                      name="contactEmail"
+                      id="contactEmail"
+                      required
+                      value={formData.contactEmail}
+                      onChange={handleChange}
+                      className="pl-10 shadow-sm focus:ring-2 focus:ring-[#136269] focus:border-[#136269] block w-full sm:text-sm border-gray-300 rounded-lg transition duration-150 ease-in-out"
+                      placeholder="your@email.com"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label
-                    htmlFor="deadline"
+                    htmlFor="contactPhone"
                     className="block text-sm font-semibold text-gray-700 mb-2"
                   >
-                    Application Deadline
+                    Contact Phone *
                   </label>
-                  <input
-                    type="datetime-local"
-                    name="deadline"
-                    id="deadline"
-                    required
-                    value={formData.deadline}
-                    onChange={handleChange}
-                    min={new Date().toISOString().slice(0, 16)}
-                    className="shadow-sm focus:ring-2 focus:ring-[#136269] focus:border-[#136269] block w-full sm:text-sm border-gray-300 rounded-lg transition duration-150 ease-in-out"
-                  />
-                  <p className="mt-1 text-sm text-gray-500">
-                    When should applications close?
-                  </p>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <PhoneIcon className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="tel"
+                      name="contactPhone"
+                      id="contactPhone"
+                      required
+                      value={formData.contactPhone}
+                      onChange={handleChange}
+                      className="pl-10 shadow-sm focus:ring-2 focus:ring-[#136269] focus:border-[#136269] block w-full sm:text-sm border-gray-300 rounded-lg transition duration-150 ease-in-out"
+                      placeholder="+1234567890"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -326,17 +337,23 @@ const CreateMentorship = () => {
                   htmlFor="communityLink"
                   className="block text-sm font-semibold text-gray-700 mb-2"
                 >
-                  Community or Group Link
+                  Community Link *
                 </label>
-                <input
-                  type="url"
-                  name="communityLink"
-                  id="communityLink"
-                  value={formData.communityLink}
-                  onChange={handleChange}
-                  className="shadow-sm focus:ring-2 focus:ring-[#136269] focus:border-[#136269] block w-full sm:text-sm border-gray-300 rounded-lg transition duration-150 ease-in-out"
-                  placeholder="e.g., https://discord.gg/... or https://chat.whatsapp.com/..."
-                />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <UserGroupIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="url"
+                    name="communityLink"
+                    id="communityLink"
+                    required
+                    value={formData.communityLink}
+                    onChange={handleChange}
+                    className="pl-10 shadow-sm focus:ring-2 focus:ring-[#136269] focus:border-[#136269] block w-full sm:text-sm border-gray-300 rounded-lg transition duration-150 ease-in-out"
+                    placeholder="https://discord.gg/... or https://chat.whatsapp.com/..."
+                  />
+                </div>
                 <p className="mt-1 text-sm text-gray-500">
                   Add your community link (Discord server, WhatsApp group, etc.)
                 </p>

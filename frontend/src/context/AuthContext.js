@@ -26,9 +26,11 @@ export const AuthProvider = ({ children }) => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+      console.log("Fetched user data:", response.data);
       setUser(response.data);
       setToken(token);
     } catch (error) {
+      console.error("Error fetching user:", error);
       localStorage.removeItem("token");
       setUser(null);
       setToken(null);
@@ -39,6 +41,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (token, userData) => {
     try {
+      console.log("Login user data:", userData);
       // Store the token
       localStorage.setItem("token", token);
 

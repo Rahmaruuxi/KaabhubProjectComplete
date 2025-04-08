@@ -18,6 +18,8 @@ import {
   PhoneIcon,
   GlobeAltIcon,
   CurrencyDollarIcon,
+  PencilIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 
 const Opportunities = () => {
@@ -200,6 +202,38 @@ const Opportunities = () => {
     navigate(`/opportunity/${opportunity._id}`, { state: { opportunity } });
   };
 
+  const handleDelete = async (opportunityId) => {
+    if (!window.confirm("Are you sure you want to delete this opportunity?")) {
+      return;
+    }
+
+    try {
+      const response = await axios.delete(
+        `${
+          process.env.REACT_APP_API_URL || "http://localhost:5000"
+        }/api/opportunities/${opportunityId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.status === 200) {
+        // Remove the deleted opportunity from both states
+        setOpportunities((prevOpportunities) =>
+          prevOpportunities.filter((opp) => opp._id !== opportunityId)
+        );
+        setAllOpportunities((prevOpportunities) =>
+          prevOpportunities.filter((opp) => opp._id !== opportunityId)
+        );
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      setError(err.response?.data?.message || "Failed to delete opportunity");
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -372,51 +406,91 @@ const Opportunities = () => {
               opportunities.map((opportunity) => (
                 <div
                   key={opportunity._id}
-                  className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
+                  className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 p-6"
                 >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          {opportunity.title}
-                        </h3>
-                        <div className="flex items-center text-sm text-gray-500 mb-2">
-                          <BuildingOfficeIcon className="h-4 w-4 mr-1" />
-                          {opportunity.company}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <MapPinIcon className="h-4 w-4 mr-1" />
-                          {opportunity.location}
-                        </div>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        {opportunity.title}
+                      </h3>
+                      <div className="flex items-center text-sm text-gray-500 mb-2">
+                        <BuildingOfficeIcon className="h-4 w-4 mr-1" />
+                        {opportunity.company}
                       </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          opportunity.type === "job"
-                            ? "bg-blue-100 text-blue-800"
-                            : opportunity.type === "internship"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-purple-100 text-purple-800"
-                        }`}
-                      >
-                        {opportunity.type}
-                      </span>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <MapPinIcon className="h-4 w-4 mr-1" />
+                        {opportunity.location}
+                      </div>
+                    </div>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        opportunity.type === "job"
+                          ? "bg-blue-100 text-blue-800"
+                          : opportunity.type === "internship"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-purple-100 text-purple-800"
+                      }`}
+                    >
+                      {opportunity.type}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                    {opportunity.description}
+                  </p>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <CalendarIcon className="h-4 w-4 mr-1" />
+                      Deadline:{" "}
+                      {new Date(opportunity.deadline).toLocaleDateString()}
                     </div>
 
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {opportunity.description}
-                    </p>
+                    <div className="flex items-center space-x-2">
+                      {user && opportunity.author && (
+                        <>
+                          {(() => {
+                            // Safely get user ID
+                            const userId = user._id || user.id;
+                            // Safely get author ID
+                            const authorId =
+                              opportunity.author._id || opportunity.author;
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <CalendarIcon className="h-4 w-4 mr-1" />
-                        Deadline:{" "}
-                        {new Date(opportunity.deadline).toLocaleDateString()}
-                      </div>
+                            // Only render if we have valid IDs to compare
+                            return (
+                              userId &&
+                              authorId &&
+                              userId.toString() === authorId.toString() && (
+                                <>
+                                  <button
+                                    onClick={() =>
+                                      navigate(
+                                        `/edit-opportunity/${opportunity._id}`
+                                      )
+                                    }
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-[#136269] bg-[#136269]/10 rounded-md hover:bg-[#136269]/20 transition-all duration-200"
+                                  >
+                                    <PencilIcon className="h-3.5 w-3.5 mr-1" />
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleDelete(opportunity._id)
+                                    }
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-all duration-200"
+                                  >
+                                    <TrashIcon className="h-3.5 w-3.5 mr-1" />
+                                    Delete
+                                  </button>
+                                </>
+                              )
+                            );
+                          })()}
+                        </>
+                      )}
                       <button
-                        onClick={() =>
-                          navigate(`/opportunity/${opportunity._id}`)
-                        }
-                        className="inline-flex items-center px-3 py-1.5 border border-[#136269] text-sm font-medium rounded-lg text-[#136269] hover:bg-[#136269] hover:text-white transition-colors duration-200"
+                        onClick={() => handleViewDetails(opportunity)}
+                        className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-[#136269] rounded-lg hover:bg-[#0f4a52] transition-all duration-200"
                       >
                         View Details
                       </button>

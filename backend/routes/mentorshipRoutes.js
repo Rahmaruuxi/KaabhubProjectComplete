@@ -2,8 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Mentorship = require("../models/Mentorship");
 const { auth } = require("../middleware/auth");
-const User = require('../models/User');
-const { createNotification } = require('../utils/notificationUtils');
+const User = require("../models/User");
+const { createNotification } = require("../utils/notificationUtils");
 
 // Get all mentorships
 router.get("/", async (req, res) => {
@@ -49,8 +49,11 @@ router.get("/filter", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const mentorship = await Mentorship.findById(req.params.id)
-      .populate("mentor", "name profilePicture")
-      .populate("mentee", "name profilePicture");
+      .populate("mentor", "name profilePicture title email")
+      .populate("mentee", "name profilePicture")
+      .select(
+        "title description category duration schedule requirements goals status contactEmail contactPhone communityLink mentor mentee createdAt"
+      );
 
     if (!mentorship) {
       return res.status(404).json({ message: "Mentorship not found" });
@@ -75,6 +78,9 @@ router.post("/", auth, async (req, res) => {
       goals,
       message,
       menteeId,
+      contactEmail,
+      contactPhone,
+      communityLink,
     } = req.body;
 
     // If menteeId is provided, it's a mentorship request
@@ -100,6 +106,9 @@ router.post("/", auth, async (req, res) => {
       goals: goals || [],
       mentor: req.user._id,
       status: "open",
+      contactEmail,
+      contactPhone,
+      communityLink,
     });
     await mentorship.save();
     await mentorship.populate("mentor", "name profilePicture");
@@ -186,6 +195,9 @@ router.put("/:id", auth, async (req, res) => {
       "schedule",
       "requirements",
       "goals",
+      "contactEmail",
+      "contactPhone",
+      "communityLink",
     ];
     const updates = Object.keys(req.body).filter((key) =>
       allowedUpdates.includes(key)
@@ -280,7 +292,7 @@ router.post("/:id/request", auth, async (req, res) => {
     await createNotification(
       mentorship.mentor,
       req.user._id,
-      'mentorship_request',
+      "mentorship_request",
       `${mentee.name} requested mentorship for: "${mentorship.title}"`,
       `/mentorship/${mentorship._id}`
     );
@@ -335,7 +347,7 @@ router.post("/:id/accept-request/:requestId", auth, async (req, res) => {
     await createNotification(
       request.mentee,
       req.user._id,
-      'mentorship_accepted',
+      "mentorship_accepted",
       `${mentor.name} accepted your mentorship request for: "${mentorship.title}"`,
       `/mentorship/${mentorship._id}`
     );
